@@ -152,16 +152,6 @@ export const playlistView = {
     // await this.renderFooterPlayer();
   },
 
-  highlightPlaying(trackId) {
-    // console.log("highlightPlaying: ", trackId);
-    // document.querySelectorAll(".track-item").forEach((el) => {
-    //   el.classList.remove("playing");
-    //   if (el.textContent.includes(trackId)) {
-    //     el.classList.add("playing");
-    //   }
-    // });
-  },
-
   handleEventPlayer(audio) {
     const logo = document.querySelector(".logo");
     const homeBtn = document.querySelector(".home-btn");
@@ -182,7 +172,6 @@ export const playlistView = {
       this.wrapperTrack.classList.remove("show-detail-wrapper");
     }, 300);
     audio.togglePlay(true);
-    controller.rerenderPlaylists();
     this.container.scrollTo({
       top: 0,
       behavior: "smooth",
