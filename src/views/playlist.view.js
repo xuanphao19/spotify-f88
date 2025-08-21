@@ -117,7 +117,8 @@ export const playlistView = {
     if (!track || !tracks?.tracks) return;
     const data = tracks.tracks;
     track = !track.audio_url ? data[Math.floor(Math.random() * (data.length - 1)) + 1] : track;
-    data.unshift(track);
+    const filtered = data.filter((item) => item.id !== track.id);
+    filtered.unshift(track);
 
     playback.onStateChange((newState) => {
       this.isPlaying = newState.isPlaying;
@@ -131,9 +132,9 @@ export const playlistView = {
       this.updateCtrlUI({ playBtn: this.playBtn, playBtnLarge: this.playBtnLarge }, newState);
     });
 
-    playback.setTracks(data, track);
+    playback.setTracks(filtered, track);
     this.trackLists.innerHTML = "";
-    data.forEach((song, i) => {
+    filtered.forEach((song, i) => {
       const trackItem = document.createElement("div");
       const trackPlays = document.createElement("div");
       const trackPlayBtn = document.createElement("button");
@@ -189,8 +190,6 @@ export const playlistView = {
     }, 50);
 
     this.handleEventAnalysis(track, hitPlay, handlePlayer);
-
-    // await this.renderFooterPlayer();
   },
 
   async handleEventAnalysis(track, hitPlay, handlePlayer) {
