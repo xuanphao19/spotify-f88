@@ -12,7 +12,7 @@ export const playlistView = {
   isPlaying: false,
   prevCurrentTrack: null,
 
-  renderList(res, prop, onSelect) {
+  async renderList(res, prop, onSelect) {
     const section = document.createElement("section");
     section.className = `${prop.section}`;
 
@@ -74,6 +74,7 @@ export const playlistView = {
       item.appendChild(infoDiv);
       listItems.appendChild(item);
     });
+
     section.appendChild(listItems);
     section.appendChild(prevCtrl);
     section.appendChild(nextCtrl);
@@ -85,19 +86,20 @@ export const playlistView = {
 
       const item = target.closest(".hit-card");
       if (item && !target.closest(".slider-ctrl")) {
+        let hitPlay = target.closest(".hit-play");
         const index = [...listItems.children].indexOf(item);
         const track = data[index];
 
         const random = Math.floor(Math.random() * (7 - 3) + 2);
-        if (onSelect) onSelect(track, random);
+        if (onSelect) onSelect(track, hitPlay, random);
       }
 
-      this.handleEventAnalysis(target, listItems, currentSlider);
+      this.moveSlider(target, listItems, currentSlider);
     });
   },
 
-  // moveSlider(parents, event) {},
-  handleEventAnalysis(target, slider, currentSlider) {
+  // moveSlider(parents, event) {}, hit-play-btn
+  moveSlider(target, slider, currentSlider) {
     const nextBtn = currentSlider.querySelector(".next-slider");
     const prevBtn = currentSlider.querySelector(".prev-slider");
     if (target.closest(".prev-slider")) {
@@ -111,7 +113,7 @@ export const playlistView = {
     }
   },
 
-  async renderTracks(tracks, track, handlePlayer) {
+  async renderTracks(tracks, track, hitPlay, handlePlayer) {
     if (!track) return;
 
     playback.onStateChange((newState) => {
@@ -147,21 +149,19 @@ export const playlistView = {
     const audio = await handlePlayer(track);
     if (this.isPlaying) audio.togglePlay(this.isPlaying);
 
-    this.handleEventPlayer(audio);
+    this.handleEventAnalysis(audio, hitPlay);
 
     // this.highlightPlaying(track.id);
     // await this.renderFooterPlayer();
   },
 
-  handleEventPlayer(audio) {
+  handleEventAnalysis(audio, hitPlay) {
     const logo = document.querySelector(".logo");
     const homeBtn = document.querySelector(".home-btn");
-    this.playBtn.onclick = () => {
-      audio.togglePlay(this.isPlaying);
-    };
-    this.playBtnLarge.onclick = () => {
-      audio.togglePlay(this.isPlaying);
-    };
+
+    if (hitPlay) audio.togglePlay(this.isPlaying);
+    this.playBtn.onclick = () => audio.togglePlay(this.isPlaying);
+    this.playBtnLarge.onclick = () => audio.togglePlay(this.isPlaying);
 
     logo.onclick = this.goHome.bind(this, audio);
     homeBtn.onclick = this.goHome.bind(this, audio);
@@ -188,7 +188,6 @@ export const playlistView = {
     const playerArtist = document.querySelector(".player-artist");
     const playerImage = document.querySelector(".player-image");
     const imgHero = document.querySelector(".hero-background img");
-    console.log("song", song);
     title.innerText = song.title;
     playerTitle.innerText = song.title;
     imgHero.src = song.image_url || "favicon.ico";

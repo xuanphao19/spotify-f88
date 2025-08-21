@@ -13,7 +13,7 @@ const trendingProp = {
   content: "hits-grid hits-slider",
   item: "hit-card",
   cover: "hit-card-cover",
-  playBtn: "hit-play-btn",
+  playBtn: "hit-play-btn hit-play",
   info: "hit-card-info",
   title: "hit-card-title",
   artist: "hit-card-artist",
@@ -28,7 +28,7 @@ const popularProp = {
   content: "artists-grid hits-slider",
   item: "artist-card hit-card",
   cover: "artist-card-cover",
-  playBtn: "artist-play-btn",
+  playBtn: "artist-play-btn hit-play",
   info: "artist-card-info",
   title: "artist-card-name",
   artist: "artist-card-name",
@@ -65,7 +65,7 @@ const playlistController = {
     }
   },
 
-  async handleSelectPlaylist(track, n) {
+  async handleSelectPlaylist(track, hitPlay, n) {
     try {
       // if (track.album_id) {
       //   const tracks = await trackService.getAlbumTracks(track.album_id);
@@ -78,7 +78,7 @@ const playlistController = {
       //   playlistView.renderTracks(tracks, track, playlistController.handlePlaySong);
       // }
       const tracks = await trackService.getTrendingLimit(n);
-      playlistView.renderTracks(tracks, track, playlistController.handlePlaySong);
+      playlistView.renderTracks(tracks, track, hitPlay, playlistController.handlePlaySong);
     } catch (err) {
       console.error("❌ Failed to load tracks:", err.message);
     }
@@ -91,6 +91,7 @@ const playlistController = {
 
       const audio = {
         togglePlay(isPlaying) {
+          console.log("str1", 123456789);
           if (isPlaying) {
             playback.pause();
             audioElement.pause();

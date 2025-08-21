@@ -58,6 +58,7 @@
 .prev-slider:hover,
 .next-slider:hover {
   background-color: rgba(62, 58, 58, 0.479);
+  background-color: #1ed760;
 }
 
 /* Navigation buttons */
@@ -1164,6 +1165,7 @@
   font-weight: 400;
 }
 button:disabled {
-  background: #39262649;
+  background: #b1474723 !important;
+  color: #b14747c3 !important;
   cursor: not-allowed;
 }
