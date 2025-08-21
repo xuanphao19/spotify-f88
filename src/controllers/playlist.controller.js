@@ -87,17 +87,17 @@ const playlistController = {
   async handlePlaySong(track) {
     try {
       const audioElement = document.querySelector("audio");
-      audioElement.src = track.audio_url;
 
       const audio = {
-        togglePlay(isPlaying) {
-          console.log("str1", 123456789);
+        togglePlay(isPlaying, song = track) {
+          audioElement.src = song.audio_url;
+
           if (isPlaying) {
             playback.pause();
             audioElement.pause();
           } else {
             playback.play(track.id);
-            audioElement.play();
+            audioElement.oncanplay = audioElement.play();
           }
         },
       };

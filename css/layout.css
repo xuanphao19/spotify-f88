@@ -114,6 +114,7 @@
 .content-wrapper {
   flex: 1;
   padding: var(--spacing-2xl) var(--spacing-lg) var(--spacing-lg);
+  scroll-behavior: smooth;
   overflow-y: auto;
 }
 

@@ -1,6 +1,5 @@
 // views/playlist.view.js
 import playback from "../services/player.service.js";
-import controller from "../controllers/playlist.controller.js";
 
 export const playlistView = {
   container: document.querySelector(`.content-wrapper`),
@@ -9,6 +8,7 @@ export const playlistView = {
   wrapperTrack: document.querySelector(`.detail-wrapper`),
   playBtn: document.querySelector(`.play-btn`),
   playBtnLarge: document.querySelector(`.play-btn-large`),
+  trackLists: document.querySelector(".track-list"),
   isPlaying: false,
   prevCurrentTrack: null,
 
@@ -114,7 +114,10 @@ export const playlistView = {
   },
 
   async renderTracks(tracks, track, hitPlay, handlePlayer) {
-    if (!track) return;
+    if (!track || !tracks?.tracks) return;
+    const data = tracks.tracks;
+    track = !track.audio_url ? data[Math.floor(Math.random() * (data.length - 1)) + 1] : track;
+    data.unshift(track);
 
     playback.onStateChange((newState) => {
       this.isPlaying = newState.isPlaying;
@@ -122,23 +125,62 @@ export const playlistView = {
 
       if (newTrack !== this.previousCurrentTrack) {
         this.previousCurrentTrack = newTrack;
-        this.updatePlayerDetail({}, newState);
+        this.updatePlayerDetail(newState);
       }
 
       this.updateCtrlUI({ playBtn: this.playBtn, playBtnLarge: this.playBtnLarge }, newState);
     });
 
-    const data = tracks.tracks;
-
-    track = !track.audio_url ? data[Math.floor(Math.random() * (data.length - 1)) + 1] : track;
-    data.push(track);
     playback.setTracks(data, track);
+    this.trackLists.innerHTML = "";
+    data.forEach((song, i) => {
+      const trackItem = document.createElement("div");
+      const trackPlays = document.createElement("div");
+      const trackPlayBtn = document.createElement("button");
+      const trackNumber = document.createElement("div");
+      const trackImage = document.createElement("div");
+      const img = document.createElement("img");
+      const trackInfo = document.createElement("div");
+      const trackName = document.createElement("div");
+      const trackEncored = document.createElement("div");
+      const trackDuration = document.createElement("div");
+      const trackMenuBrn = document.createElement("button");
+
+      trackItem.setAttribute("data-id", song.id);
+      trackItem.className = `track-item`;
+      trackPlays.className = `track-plays`;
+      trackNumber.className = `track-number`;
+      trackImage.className = `track-image`;
+      trackInfo.className = `track-info`;
+      trackName.className = `track-name`;
+      trackEncored.className = `track-encored`;
+      trackDuration.className = `track-duration`;
+      trackMenuBrn.className = `track-menu-btn`;
+
+      trackPlayBtn.innerHTML = `<i class="fas fa-play"></i>`;
+      trackNumber.innerText = `${i + 1}`;
+      img.src = song.image_url || "placeholder.svg";
+      trackName.innerText = song.artist_name;
+      trackEncored.innerText = `27,498,341`;
+      trackDuration.innerText = song.duration;
+      trackMenuBrn.innerHTML = `<i class="fas fa-ellipsis-h"></i>`;
+      trackPlays.append(trackPlayBtn);
+      trackPlays.append(trackNumber);
+      trackImage.append(img);
+      trackInfo.append(trackName);
+
+      trackItem.append(trackPlays);
+      trackItem.append(trackImage);
+      trackItem.append(trackInfo);
+      trackItem.append(trackEncored);
+      trackItem.append(trackDuration);
+      trackItem.append(trackMenuBrn);
+
+      this.trackLists.append(trackItem);
+    });
 
     this.wrapperTrack.classList.add("show-detail-wrapper");
-    this.container.scrollTo({
-      top: 0,
-      behavior: "smooth",
-    });
+    this.container.scrollTo({ top: 0 });
 
     setTimeout(() => {
       if (this.wrapperTrack.classList.contains("show-detail-wrapper")) {
@@ -146,25 +188,51 @@ export const playlistView = {
       }
     }, 50);
 
-    const audio = await handlePlayer(track);
-    if (this.isPlaying) audio.togglePlay(this.isPlaying);
+    this.handleEventAnalysis(track, hitPlay, handlePlayer);
 
-    this.handleEventAnalysis(audio, hitPlay);
-
-    // this.highlightPlaying(track.id);
     // await this.renderFooterPlayer();
   },
 
-  handleEventAnalysis(audio, hitPlay) {
+  async handleEventAnalysis(track, hitPlay, handlePlayer) {
     const logo = document.querySelector(".logo");
     const homeBtn = document.querySelector(".home-btn");
+    const btnPlays = [...document.querySelectorAll(".track-plays button")];
+
+    const audio = await handlePlayer(track);
+    if (this.isPlaying) audio.togglePlay(this.isPlaying);
 
     if (hitPlay) audio.togglePlay(this.isPlaying);
+
     this.playBtn.onclick = () => audio.togglePlay(this.isPlaying);
     this.playBtnLarge.onclick = () => audio.togglePlay(this.isPlaying);
 
     logo.onclick = this.goHome.bind(this, audio);
     homeBtn.onclick = this.goHome.bind(this, audio);
+
+    if (btnPlays) {
+      btnPlays.forEach((btn) => {
+        btn.onclick = (e) => this.handlePlayOnList(e, audio);
+      });
+    }
+  },
+
+  handlePlayOnList(e, audio) {
+    const item = e.target.closest(".track-item");
+    if (!item) return;
+
+    const state = playback.getState();
+    const currentSongId = state.currentTrack?.id;
+    const songs = state.tracks;
+    const selectSongId = item.dataset.id;
+
+    const songSelect = state.tracks.find((song) => song.id === selectSongId);
+    if (!songSelect) return;
+    playback.setTracks(songs, songSelect);
+    if (currentSongId !== selectSongId && this.isPlaying) {
+      audio.togglePlay(!state.isPlaying, songSelect);
+    } else {
+      audio.togglePlay(state.isPlaying, songSelect);
+    }
   },
 
   goHome(audio) {
@@ -179,8 +247,8 @@ export const playlistView = {
     });
   },
 
-  updatePlayerDetail({}, state) {
-    const song = state.currentTrack;
+  updatePlayerDetail(state) {
+    const song = state.currentTrack || {};
     const title = document.querySelector(".detail-title");
     const albumTitle = document.querySelector(".album-title");
     const playerTitle = document.querySelector(".player-title");
@@ -188,19 +256,40 @@ export const playlistView = {
     const playerArtist = document.querySelector(".player-artist");
     const playerImage = document.querySelector(".player-image");
     const imgHero = document.querySelector(".hero-background img");
-    title.innerText = song.title;
-    playerTitle.innerText = song.title;
-    imgHero.src = song.image_url || song.album_cover_image_url || "favicon.ico";
-    playerImage.src = song.album_cover_image_url || song.image_url || "favicon.ico";
-    playerArtist.innerText = song.artist_name;
-    artistName.innerText = song.artist_name;
-    albumTitle.innerText = song.album_title;
+
+    if (song.title) {
+      title.innerText = song.title || "";
+      playerTitle.innerText = song.title || "";
+      imgHero.src = song.image_url || song.album_cover_image_url || "favicon.ico";
+      playerImage.src = song.album_cover_image_url || song.image_url || "favicon.ico";
+      playerArtist.innerText = song.artist_name || "";
+      artistName.innerText = song.artist_name || "";
+      albumTitle.innerText = song.album_title || "";
+    } else {
+      title.innerText = "";
+      playerTitle.innerText = "";
+      imgHero.src = "favicon.ico";
+      playerImage.src = "favicon.ico";
+      playerArtist.innerText = "";
+      artistName.innerText = "";
+      albumTitle.innerText = "";
+    }
   },
 
   updateCtrlUI(ctrl, state) {
-    if (state.currentTrack) {
-      ctrl.playBtn.innerHTML = state.isPlaying ? `<i class="fas fa-pause"></i>` : `<i class="fas fa-play"></i>`;
-      ctrl.playBtnLarge.innerHTML = state.isPlaying ? `<i class="fas fa-pause"></i>` : `<i class="fas fa-play"></i>`;
-    }
+    const song = state.currentTrack || {};
+    const isPlaying = state.isPlaying || false;
+
+    ctrl.playBtn.innerHTML = isPlaying && song.id ? `<i class="fas fa-pause"></i>` : `<i class="fas fa-play"></i>`;
+    ctrl.playBtnLarge.innerHTML = isPlaying && song.id ? `<i class="fas fa-pause"></i>` : `<i class="fas fa-play"></i>`;
+
+    const allTrackItems = this.trackLists.querySelectorAll(".track-item");
+    allTrackItems?.forEach((item) => {
+      const btnPlay = item.querySelector(".track-plays button");
+      if (!btnPlay) return;
+      const isActive = song.id === item.dataset.id && isPlaying;
+      btnPlay.innerHTML = isActive ? `<i class="fas fa-volume-up"></i>` : `<i class="fas fa-play"></i>`;
+      item.classList.toggle("active", isActive);
+    });
   },
 };
