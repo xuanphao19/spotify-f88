@@ -169,15 +169,13 @@ async function createDummyAccount() {
   };
 
   try {
-    // // 1. Lấy token register
+    // // 1. Register lấy token
     const res = await authService.register(body);
     // // 2. Lưu token
     localStorage.setItem("access_token", res.access_token);
     localStorage.setItem("refresh_token", res.refresh_token);
-
     // // 3. Test gọi /users/me
     const me = await userService.getProfile();
-
     // return { email, username, password, tokens: res, profile: me };
   } catch (err) {
     console.error("❌ Mock register failed:", err);
@@ -188,7 +186,6 @@ createDummyAccount();
 
 // // 4. Lấy playlist playlist
 await playlist.loadPlaylists();
-
 // // 5. Chọn playlist đầu tiên → lấy track
 // const firstPlaylist = data.playlists[0];
 // const tracks = await playlistService.getTracks(firstPlaylist.id);

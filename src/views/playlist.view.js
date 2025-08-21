@@ -127,7 +127,8 @@ export const playlistView = {
     });
 
     const data = tracks.tracks;
-    track = !track.audio_url ? data[0] : track;
+
+    track = !track.audio_url ? data[Math.floor(Math.random() * (data.length - 1)) + 1] : track;
     data.push(track);
     playback.setTracks(data, track);
 
@@ -180,14 +181,21 @@ export const playlistView = {
 
   updatePlayerDetail({}, state) {
     const song = state.currentTrack;
-    const imgHero = document.querySelector(".hero-background img");
-    const artistName = document.querySelector(".artist-name");
     const title = document.querySelector(".detail-title");
     const albumTitle = document.querySelector(".album-title");
-    imgHero.src = song.image_url;
+    const playerTitle = document.querySelector(".player-title");
+    const artistName = document.querySelector(".artist-name");
+    const playerArtist = document.querySelector(".player-artist");
+    const playerImage = document.querySelector(".player-image");
+    const imgHero = document.querySelector(".hero-background img");
+    console.log("song", song);
+    title.innerText = song.title;
+    playerTitle.innerText = song.title;
+    imgHero.src = song.image_url || "favicon.ico";
+    playerImage.src = song.album_cover_image_url || "favicon.ico";
+    playerArtist.innerText = song.artist_name;
     artistName.innerText = song.artist_name;
     albumTitle.innerText = song.album_title;
-    title.innerText = song.title;
   },
 
   updateCtrlUI(ctrl, state) {

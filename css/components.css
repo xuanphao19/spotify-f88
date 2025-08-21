@@ -455,6 +455,8 @@
 
 /* Artist Controls */
 .artist-controls {
+  position: sticky;
+  top: 0;
   display: flex;
   align-items: center;
   gap: var(--spacing-2xl);
