@@ -551,6 +551,8 @@
   background-color: var(--bg-tertiary);
 }
 
+.track-item.hover .track-plays i,
+.track-item.hover .track-name,
 .track-item.active .track-menu-btn,
 .track-item.active .track-name,
 .track-item.active .track-plays i,
@@ -1058,7 +1060,6 @@
 
 /* Hits Section */
 .hits-section,
-.artists-section,
 .artists-section,
 .popular-albums-section {
   position: relative;

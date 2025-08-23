@@ -1,9 +1,7 @@
 import authService from "./src/services/auth.service.js";
-import playlistService from "./src/services/playlist.service.js";
 import playerService from "./src/services/player.service.js";
-import trackService from "./src/services/track.service.js";
 import userService from "./src/services/user.service.js";
-import playlist from "./src/controllers/playlist.controller.js";
+import playlistCtrl from "./src/controllers/playlist.controller.js";
 
 const $ = (selector, p = document) => p.querySelector(selector);
 const $$ = (selector, p = document) => p.querySelectorAll(selector);
@@ -152,42 +150,35 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 
 // Other functionality
-document.addEventListener("DOMContentLoaded", function () {
-  // TODO: Implement other functionality here
-});
+// TODO: Implement other functionality here
+document.addEventListener("DOMContentLoaded", async function () {
+  async function createDummyAccount() {
+    const suffix = `${Date.now()}${Math.random().toString(36).slice(2, 10)}`;
+    const username = `user${suffix}`;
+    const email = `nguyen${suffix}@gmail.com`;
+    const password = "Password123!@#";
+    const body = {
+      username: username,
+      email: email,
+      password: password,
+      display_name: username,
+    };
 
-async function createDummyAccount() {
-  const suffix = `${Date.now()}${Math.random().toString(36).slice(2, 10)}`;
-  const username = `user${suffix}`;
-  const email = `nguyen${suffix}@gmail.com`;
-  const password = "Password123!@#";
-  const body = {
-    username: username,
-    email: email,
-    password: password,
-    display_name: username,
-  };
-
-  try {
-    // // 1. Register lấy token
-    const res = await authService.register(body);
-    // // 2. Lưu token
-    localStorage.setItem("access_token", res.access_token);
-    localStorage.setItem("refresh_token", res.refresh_token);
-    // // 3. Test gọi /users/me
-    const me = await userService.getProfile();
-    // return { email, username, password, tokens: res, profile: me };
-  } catch (err) {
-    console.error("❌ Mock register failed:", err);
-    throw err;
+    try {
+      // // 1. Register lấy token
+      const res = await authService.register(body);
+      // // 2. Lưu token
+      localStorage.setItem("access_token", res.access_token);
+      localStorage.setItem("refresh_token", res.refresh_token);
+      // // 3. Test gọi /users/me
+      const me = await userService.getProfile();
+      // return { email, username, password, tokens: res, profile: me };
+    } catch (err) {
+      console.error("❌ Mock register failed:", err);
+      throw err;
+    }
   }
-}
-createDummyAccount();
+  await createDummyAccount();
 
-// // 4. Lấy playlist playlist
-await playlist.loadPlaylists();
-// // 5. Chọn playlist đầu tiên → lấy track
-// const firstPlaylist = data.playlists[0];
-// const tracks = await playlistService.getTracks(firstPlaylist.id);
-const track = await trackService.getTrendingLimit(5);
-// const trackId = tracks.tracks[0].id;
+  await playlistCtrl.init();
+});

@@ -1,120 +1,138 @@
 // controllers/playlist.controller.js
 import trackService from "../services/track.service.js";
-import { playlistView } from "../views/playlist.view.js";
+import viewer from "../views/playlist.view.js";
 import playback from "../services/player.service.js";
 import artistsService from "../services/artists.service.js";
 
-const trendingProp = {
-  selector: "content-wrapper",
-  headTitle: "Today's biggest hits",
-  section: "hits-section",
-  header: "section-header",
-  heading: "section-heading",
-  content: "hits-grid hits-slider",
-  item: "hit-card",
-  cover: "hit-card-cover",
-  playBtn: "hit-play-btn hit-play",
-  info: "hit-card-info",
-  title: "hit-card-title",
-  artist: "hit-card-artist",
-  ctrl: "slider-ctrl",
-};
+const playlistCtrl = {
+  audioEle: null,
 
-const popularProp = {
-  ...trendingProp,
-  headTitle: "Featured Albums",
-  section: "artists-section",
+  async init() {
+    this.audioEle = document.querySelector("audio");
+    if (!this.audioEle) {
+      this.audioEle = document.createElement("audio");
+      document.body.appendChild(this.audioEle);
+    }
 
-  content: "artists-grid hits-slider",
-  item: "artist-card hit-card",
-  cover: "artist-card-cover",
-  playBtn: "artist-play-btn hit-play",
-  info: "artist-card-info",
-  title: "artist-card-name",
-  artist: "artist-card-name",
-};
+    playback.onStateChange((newState) => {
+      const newTrack = newState.currentTrack;
 
-const albumsProp = {
-  ...trendingProp,
-  headTitle: "Popular artists",
-  section: "albums-section artists-section",
-};
+      if (newTrack !== viewer.prevCurrentTrack) {
+        viewer.prevCurrentTrack = newTrack;
+        viewer.updatePlayerDetail(newState);
+      }
 
-const artistsProp = {
-  ...trendingProp,
-  headTitle: "Popular albums and singles",
-  section: "popular-albums-section",
-};
+      if (viewer.isPlaying !== newState.isPlaying || viewer.isPlaying) {
+        viewer.updatePlaybackUI({ playBtn: viewer.playBtn, playBtnLarge: viewer.playBtnLarge }, newState);
+      }
 
-const playlistController = {
+      viewer.isPlaying = newState.isPlaying;
+    });
+
+    await this.loadPlaylists();
+  },
+
   async loadPlaylists() {
     try {
-      const trendingTrack = await trackService.getTrendingLimit(50);
-      playlistView.renderList(trendingTrack, trendingProp, this.handleSelectPlaylist);
+      const trendingTracks = await trackService.getTrendingLimit(50);
+      viewer.renderList(trendingTracks, "Today's biggest hits", this.handleSelectTracks.bind(this));
 
       const popularArtists = await trackService.getPopularLimit(50);
-      playlistView.renderList(popularArtists, popularProp, this.handleSelectPlaylist);
+      viewer.renderList(popularArtists, "Featured Albums", this.handleSelectTracks.bind(this));
 
       const albums = await trackService.getAlbums();
-      playlistView.renderList(albums, albumsProp, this.handleSelectPlaylist);
+      viewer.renderList(albums, "Popular artists", this.handleSelectTracks.bind(this));
 
       const artistsStars = await artistsService.getArtists();
-      playlistView.renderList(artistsStars, artistsProp, this.handleSelectPlaylist);
+      viewer.renderList(artistsStars, "Popular albums and singles", this.handleSelectTracks.bind(this));
     } catch (err) {
       console.error("❌ Failed to load playlists:", err.message);
     }
   },
 
-  async handleSelectPlaylist(track, hitPlay, n) {
+  async handleSelectTracks(track, hitPlay) {
     try {
       // if (track.album_id) {
       //   const tracks = await trackService.getAlbumTracks(track.album_id);
-      //   playlistView.renderTracks(tracks, track, playlistController.handlePlaySong);
+      //   viewer.renderTracks(tracks, track, playlistCtrl.handlePlaySong);
       // } else if (track.artist_id) {
       //   const tracks = await artistsService.getArtistsTrending();
-      //   playlistView.renderTracks(tracks, track, playlistController.handlePlaySong);
+      //   viewer.renderTracks(tracks, track, playlistCtrl.handlePlaySong);
       // } else {
       //   const tracks = await playlistService.getPlaylistsLimit(n);
-      //   playlistView.renderTracks(tracks, track, playlistController.handlePlaySong);
-      // }
-      const tracks = await trackService.getTrendingLimit(n);
-      playlistView.renderTracks(tracks, track, hitPlay, playlistController.handlePlaySong);
+      //   viewer.renderTracks(tracks, track, playlistCtrl.handlePlaySong);
+      // queue}
+
+      const random = Math.floor(Math.random() * (7 - 3) + 3);
+      const response = await trackService.getTrendingLimit(random);
+      const res = [...response.tracks];
+
+      track = !track.audio_url ? res[Math.floor(Math.random() * (res.length - 1)) + 1] : track;
+      const queues = res.filter((item) => item.id !== track.id);
+      queues.unshift(track);
+
+      const updates = {
+        ...playback.state,
+        currentTrack: queues[0],
+        tracks: queues,
+        queue: queues,
+      };
+      playback.setState(updates);
+
+      playlistCtrl.handlePlaySong();
+      viewer.renderTracks(queues, hitPlay);
     } catch (err) {
       console.error("❌ Failed to load tracks:", err.message);
     }
   },
 
-  async handlePlaySong(track) {
+  async handlePlaySong() {
     try {
-      const audioElement = document.querySelector("audio");
+      const state = playback.state;
+      const tracks = state.tracks;
+      const track = state.currentTrack;
+      if (!track || !tracks.length) return;
+
+      const audioEle = this.audioEle;
+      audioEle.src = track.audio_url;
+      let currentTrack = track;
 
       const audio = {
-        togglePlay(isPlaying, song = track) {
-          audioElement.src = song.audio_url;
-
-          if (isPlaying) {
-            playback.pause();
-            audioElement.pause();
+        togglePlay(songId) {
+          const song = songId && tracks.find((song) => song.id === songId);
+          if (song && song !== currentTrack) {
+            currentTrack = song;
+            playback.setTracks(tracks, currentTrack);
+            audioEle.src = currentTrack.audio_url;
+            this.play(true);
+          } else if (!state.isPlaying) {
+            this.play();
           } else {
-            playback.play(track.id);
-            audioElement.oncanplay = audioElement.play();
+            this.pause();
           }
+        },
+        play(isNewTrack = false) {
+          playback.play(currentTrack.id);
+          if (isNewTrack) {
+            audioEle.oncanplay = () => audioEle.play();
+          } else {
+            audioEle.play();
+          }
+        },
+        pause() {
+          playback.pause();
+          audioEle.pause();
         },
       };
 
-      audioElement.onplay = () => {
-        // console.log("audioElement.onplay");
-      };
-
+      viewer.audio = audio;
       return audio;
     } catch (error) {
       console.log("error at handlePlaySong() : ", error);
     }
   },
 
-  async rerenderPlaylists() {
-    await this.loadPlaylists();
-  },
+  async updateNewSong() {},
 };
 
-export default playlistController;
+export default playlistCtrl;

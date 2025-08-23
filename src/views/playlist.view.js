@@ -1,21 +1,98 @@
 // views/playlist.view.js
+
 import playback from "../services/player.service.js";
 
-export const playlistView = {
-  container: document.querySelector(`.content-wrapper`),
-  footerElement: document.querySelector(`.footer-player`),
-  detailTrack: document.querySelector(`.detail-track`),
-  wrapperTrack: document.querySelector(`.detail-wrapper`),
-  playBtn: document.querySelector(`.play-btn`),
-  playBtnLarge: document.querySelector(`.play-btn-large`),
-  trackLists: document.querySelector(".track-list"),
-  isPlaying: false,
-  prevCurrentTrack: null,
+const $ = (selector, p = document) => p.querySelector(selector);
+const $$ = (selector, p = document) => p.querySelectorAll(selector);
 
-  async renderList(res, prop, onSelect) {
+const prop = {
+  selector: "content-wrapper",
+  section: "hits-section",
+  header: "section-header",
+  heading: "section-heading",
+  content: "hits-grid hits-slider",
+  item: "hit-card",
+  cover: "hit-card-cover",
+  playBtn: "hit-play-btn hit-play",
+  info: "hit-card-info",
+  title: "hit-card-title",
+  artist: "hit-card-artist",
+  ctrl: "slider-ctrl",
+  ctrl: "slider-ctrl",
+};
+
+const artistProp = {
+  ...prop,
+  content: "artists-grid hits-slider",
+  item: "artist-card hit-card",
+  cover: "artist-card-cover",
+  playBtn: "hit-play artist-play-btn",
+  info: "artist-card-info",
+  title: "artist-card-name",
+  artist: "artist-card-name",
+};
+
+const playlistView = {
+  detailTrack: $(`.detail-track`),
+  container: $(`.content-wrapper`),
+  wrapperTrack: $(`.detail-wrapper`),
+  playBtnLarge: $(`.play-btn-large`),
+  trackLists: $(".track-list"),
+  playBtn: $(`.play-btn`),
+  isPlaying: false,
+  prevVolume: 50,
+  prevCurrentTrack: null,
+  audio: null,
+
+  async renderList(res, title, onSelect) {
+    const data = res.albums || res.tracks || res.artists;
+    const section = this._createSectionTracks(prop, title);
+    const listItems = this._createContentSection(data, prop, title);
+    section.appendChild(listItems);
+    this.container.appendChild(section);
+
+    section.addEventListener("click", (event) => {
+      const target = event.target;
+      const currentSlider = event.currentTarget;
+
+      const item = target.closest(".hit-card");
+      if (item && !target.closest(".slider-ctrl")) {
+        // Send DOMnode => not selectorAll & forEach
+        const hitPlay = target.closest(".hit-play");
+        // Cách lấy phần tử DOM để truy xuất phần tử
+        // tương ứng từ mảng mà không dùng vòng lặp thủ công
+        const index = [...listItems.children].indexOf(item);
+        const track = data[index];
+
+        if (onSelect) onSelect(track, hitPlay);
+      }
+
+      this._moveSlider(target, listItems, currentSlider);
+    });
+  },
+
+  _createSectionTracks(prop, title) {
+    prop = title === "Featured Albums" ? artistProp : prop;
+    const { prevCtrl, nextCtrl } = this._createCtrlSlider(prop);
+
     const section = document.createElement("section");
     section.className = `${prop.section}`;
+    const head = document.createElement("div");
+    head.className = `${prop.header}`;
 
+    const heading = document.createElement("h2");
+    heading.className = `${prop.heading}`;
+    heading.innerText = `${title}`;
+    head.appendChild(heading);
+
+    section.appendChild(head);
+    section.appendChild(prevCtrl);
+    section.appendChild(nextCtrl);
+
+    return section;
+  },
+
+  _createCtrlSlider(prop) {
     const prevCtrl = document.createElement("button");
     prevCtrl.className = `${prop.ctrl} btn prev-slider`;
     prevCtrl.innerText = `◀`;
@@ -23,39 +100,36 @@ export const playlistView = {
     const nextCtrl = document.createElement("button");
     nextCtrl.className = `${prop.ctrl} btn next-slider`;
     nextCtrl.innerText = `▶`;
+    return { prevCtrl, nextCtrl };
+  },
 
-    const head = document.createElement("div");
-    head.className = `${prop.header}`;
+  _createDivImages(selector, url, alt) {
+    const wrapImage = document.createElement("div");
+    wrapImage.className = `${selector}`;
+    const img = document.createElement("img");
+    img.src = `${url}` || "placeholder.svg";
+    img.alt = alt;
+    wrapImage.appendChild(img);
+    return wrapImage;
+  },
 
-    const heading = document.createElement("h2");
-    heading.className = `${prop.heading}`;
-    heading.innerText = `${prop.headTitle}`;
-
-    head.appendChild(heading);
-    section.appendChild(head);
-
+  _createContentSection(data, prop, title) {
+    prop = title === "Featured Albums" ? artistProp : prop;
     const listItems = document.createElement("div");
     listItems.className = `${prop.content}`;
-    listItems.innerHTML = "";
 
-    const data = res.albums || res.tracks || res.artists;
+    listItems.innerHTML = "";
     data.forEach((track) => {
       const item = document.createElement("div");
       item.className = `${prop.item}`;
       item.setAttribute("data-id", `${track.id}`);
       // Cover
-      const coverDiv = document.createElement("div");
-      coverDiv.className = `${prop.cover}`;
-      const img = document.createElement("img");
-      img.src = track.image_url || track.artist_image_url || "placeholder.svg";
-      img.alt = track.title;
+      const imgUrl = track.image_url || track.artist_image_url;
+      const coverDiv = this._createDivImages(prop.cover, imgUrl, track.title);
       const playBtn = document.createElement("button");
       playBtn.className = `${prop.playBtn}`;
       playBtn.innerHTML = `<i class="fas fa-play"></i>`;
-
-      coverDiv.appendChild(img);
       coverDiv.appendChild(playBtn);
-
       // Info
       const infoDiv = document.createElement("div");
       infoDiv.className = `${prop.info}`;
@@ -75,31 +149,10 @@ export const playlistView = {
       listItems.appendChild(item);
     });
 
-    section.appendChild(listItems);
-    section.appendChild(prevCtrl);
-    section.appendChild(nextCtrl);
-    this.container.appendChild(section);
-
-    section.addEventListener("click", (event) => {
-      const target = event.target;
-      const currentSlider = event.currentTarget;
-
-      const item = target.closest(".hit-card");
-      if (item && !target.closest(".slider-ctrl")) {
-        let hitPlay = target.closest(".hit-play");
-        const index = [...listItems.children].indexOf(item);
-        const track = data[index];
-
-        const random = Math.floor(Math.random() * (7 - 3) + 2);
-        if (onSelect) onSelect(track, hitPlay, random);
-      }
-
-      this.moveSlider(target, listItems, currentSlider);
-    });
+    return listItems;
   },
 
-  // moveSlider(parents, event) {}, hit-play-btn
-  moveSlider(target, slider, currentSlider) {
+  _moveSlider(target, slider, currentSlider) {
     const nextBtn = currentSlider.querySelector(".next-slider");
     const prevBtn = currentSlider.querySelector(".prev-slider");
     if (target.closest(".prev-slider")) {
@@ -113,34 +166,19 @@ export const playlistView = {
     }
   },
 
-  async renderTracks(tracks, track, hitPlay, handlePlayer) {
-    if (!track || !tracks?.tracks) return;
-    const data = tracks.tracks;
-    track = !track.audio_url ? data[Math.floor(Math.random() * (data.length - 1)) + 1] : track;
-    const filtered = data.filter((item) => item.id !== track.id);
-    filtered.unshift(track);
+  /* =================== */
+  /* ==== renderTracks ===== */
+  /* =================== */
 
-    playback.onStateChange((newState) => {
-      this.isPlaying = newState.isPlaying;
-      const newTrack = newState.currentTrack;
+  async renderTracks(queues, hitPlay) {
+    if (!Array.isArray(queues)) return;
 
-      if (newTrack !== this.previousCurrentTrack) {
-        this.previousCurrentTrack = newTrack;
-        this.updatePlayerDetail(newState);
-      }
-
-      this.updateCtrlUI({ playBtn: this.playBtn, playBtnLarge: this.playBtnLarge }, newState);
-    });
-
-    playback.setTracks(filtered, track);
     this.trackLists.innerHTML = "";
-    filtered.forEach((song, i) => {
+    queues.forEach((song, i) => {
       const trackItem = document.createElement("div");
       const trackPlays = document.createElement("div");
       const trackPlayBtn = document.createElement("button");
       const trackNumber = document.createElement("div");
-      const trackImage = document.createElement("div");
-      const img = document.createElement("img");
       const trackInfo = document.createElement("div");
       const trackName = document.createElement("div");
       const trackEncored = document.createElement("div");
@@ -151,23 +189,22 @@ export const playlistView = {
       trackItem.className = `track-item`;
       trackPlays.className = `track-plays`;
       trackNumber.className = `track-number`;
-      trackImage.className = `track-image`;
       trackInfo.className = `track-info`;
       trackName.className = `track-name`;
       trackEncored.className = `track-encored`;
       trackDuration.className = `track-duration`;
       trackMenuBrn.className = `track-menu-btn`;
+      const url = song.image_url;
+      const trackImage = this._createDivImages(`track-image`, url, song.artist_name);
 
       trackPlayBtn.innerHTML = `<i class="fas fa-play"></i>`;
       trackNumber.innerText = `${i + 1}`;
-      img.src = song.image_url || "placeholder.svg";
       trackName.innerText = song.artist_name;
       trackEncored.innerText = `27,498,341`;
       trackDuration.innerText = song.duration;
       trackMenuBrn.innerHTML = `<i class="fas fa-ellipsis-h"></i>`;
       trackPlays.append(trackPlayBtn);
       trackPlays.append(trackNumber);
-      trackImage.append(img);
       trackInfo.append(trackName);
 
       trackItem.append(trackPlays);
@@ -182,79 +219,62 @@ export const playlistView = {
 
     this.wrapperTrack.classList.add("show-detail-wrapper");
     this.container.scrollTo({ top: 0 });
+    setTimeout(() => this.detailTrack.classList.add("show-detail"), 50);
 
-    setTimeout(() => {
-      if (this.wrapperTrack.classList.contains("show-detail-wrapper")) {
-        this.detailTrack.classList.add("show-detail");
-      }
-    }, 50);
-
-    this.handleEventAnalysis(track, hitPlay, handlePlayer);
+    this.handleEventAnalysis(queues[0], hitPlay);
   },
 
-  async handleEventAnalysis(track, hitPlay, handlePlayer) {
-    const logo = document.querySelector(".logo");
-    const homeBtn = document.querySelector(".home-btn");
-    const btnPlays = [...document.querySelectorAll(".track-plays button")];
+  async handleEventAnalysis(hitPlay) {
+    const audio = this.audio;
+    const logo = $(".logo");
+    const homeBtn = $(".home-btn");
+    const btnPlays = [...$$(".track-plays button")];
 
-    const audio = await handlePlayer(track);
-    if (this.isPlaying) audio.togglePlay(this.isPlaying);
+    logo.onclick = (e) => this.goHome(e, audio);
+    homeBtn.onclick = (e) => this.goHome(e, audio);
 
-    if (hitPlay) audio.togglePlay(this.isPlaying);
-
-    this.playBtn.onclick = () => audio.togglePlay(this.isPlaying);
-    this.playBtnLarge.onclick = () => audio.togglePlay(this.isPlaying);
-
-    logo.onclick = this.goHome.bind(this, audio);
-    homeBtn.onclick = this.goHome.bind(this, audio);
+    if (hitPlay) audio.togglePlay();
+    this.playBtn.onclick = () => audio.togglePlay();
+    this.playBtnLarge.onclick = () => audio.togglePlay();
 
     if (btnPlays) {
       btnPlays.forEach((btn) => {
-        btn.onclick = (e) => this.handlePlayOnList(e, audio);
+        btn.onclick = (e) => this.handleTrackOnList(e, audio);
       });
     }
   },
 
-  handlePlayOnList(e, audio) {
+  handleTrackOnList(e, audio) {
     const item = e.target.closest(".track-item");
     if (!item) return;
-
-    const state = playback.getState();
-    const currentSongId = state.currentTrack?.id;
-    const songs = state.tracks;
     const selectSongId = item.dataset.id;
-
-    const songSelect = state.tracks.find((song) => song.id === selectSongId);
-    if (!songSelect) return;
-    playback.setTracks(songs, songSelect);
-    if (currentSongId !== selectSongId && this.isPlaying) {
-      audio.togglePlay(!state.isPlaying, songSelect);
-    } else {
-      audio.togglePlay(state.isPlaying, songSelect);
-    }
+    if (!selectSongId) return;
+    audio.togglePlay(selectSongId);
   },
 
-  goHome(audio) {
-    this.detailTrack.classList.remove("show-detail");
-    setTimeout(() => {
-      this.wrapperTrack.classList.remove("show-detail-wrapper");
-    }, 300);
-    audio.togglePlay(true);
-    this.container.scrollTo({
-      top: 0,
-      behavior: "smooth",
-    });
+  goHome(e, audio) {
+    if (e.target.closest(".home-btn") || e.target.closest(".logo")) {
+      $(".show-detail")?.classList.remove("show-detail");
+      setTimeout(() => {
+        $(".show-detail-wrapper")?.classList.remove("show-detail-wrapper");
+      }, 300);
+      audio.pause();
+      $(`.content-wrapper`).scrollTo({
+        top: 0,
+        behavior: "smooth",
+      });
+    }
   },
 
   updatePlayerDetail(state) {
     const song = state.currentTrack || {};
-    const title = document.querySelector(".detail-title");
-    const albumTitle = document.querySelector(".album-title");
-    const playerTitle = document.querySelector(".player-title");
-    const artistName = document.querySelector(".artist-name");
-    const playerArtist = document.querySelector(".player-artist");
-    const playerImage = document.querySelector(".player-image");
-    const imgHero = document.querySelector(".hero-background img");
+    const title = $(".detail-title");
+    const albumTitle = $(".album-title");
+    const playerTitle = $(".player-title");
+    const artistName = $(".artist-name");
+    const playerArtist = $(".player-artist");
+    const playerImage = $(".player-image");
+    const imgHero = $(".hero-background img");
 
     if (song.title) {
       title.innerText = song.title || "";
@@ -275,16 +295,17 @@ export const playlistView = {
     }
   },
 
-  updateCtrlUI(ctrl, state) {
+  updatePlaybackUI(ctrl, state) {
     const song = state.currentTrack || {};
     const isPlaying = state.isPlaying || false;
+    const { playBtn, playBtnLarge } = ctrl;
 
-    ctrl.playBtn.innerHTML = isPlaying && song.id ? `<i class="fas fa-pause"></i>` : `<i class="fas fa-play"></i>`;
-    ctrl.playBtnLarge.innerHTML = isPlaying && song.id ? `<i class="fas fa-pause"></i>` : `<i class="fas fa-play"></i>`;
+    playBtn.innerHTML = isPlaying && song.id ? `<i class="fas fa-pause"></i>` : `<i class="fas fa-play"></i>`;
+    playBtnLarge.innerHTML = isPlaying && song.id ? `<i class="fas fa-pause"></i>` : `<i class="fas fa-play"></i>`;
 
-    const allTrackItems = this.trackLists.querySelectorAll(".track-item");
-    allTrackItems?.forEach((item) => {
-      const btnPlay = item.querySelector(".track-plays button");
+    const allTrackItems = $$(".track-item", this.trackLists);
+    allTrackItems?.forEach((item, i) => {
+      const btnPlay = $(".track-plays button", item);
       if (!btnPlay) return;
       const isActive = song.id === item.dataset.id && isPlaying;
       btnPlay.innerHTML = isActive ? `<i class="fas fa-volume-up"></i>` : `<i class="fas fa-play"></i>`;
@@ -292,3 +313,5 @@ export const playlistView = {
     });
   },
 };
+
+export default playlistView;
