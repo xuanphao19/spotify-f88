@@ -187,6 +187,7 @@
   display: flex;
   align-items: center;
   gap: var(--spacing-md);
+  padding-top: 8px;
 }
 
 .progress-container {

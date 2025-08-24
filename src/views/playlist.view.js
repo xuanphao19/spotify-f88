@@ -1,7 +1,5 @@
 // views/playlist.view.js
 
-import playback from "../services/player.service.js";
-
 const $ = (selector, p = document) => p.querySelector(selector);
 const $$ = (selector, p = document) => p.querySelectorAll(selector);
 
@@ -44,14 +42,14 @@ const playlistView = {
   prevCurrentTrack: null,
   audio: null,
 
-  async renderList(res, title, onSelect) {
+  async renderList(res, title, onSelectTrack) {
     const data = res.albums || res.tracks || res.artists;
     const section = this._createSectionTracks(prop, title);
     const listItems = this._createContentSection(data, prop, title);
     section.appendChild(listItems);
     this.container.appendChild(section);
 
-    section.addEventListener("click", (event) => {
+    section.addEventListener("click", async (event) => {
       const target = event.target;
       const currentSlider = event.currentTarget;
 
@@ -64,11 +62,47 @@ const playlistView = {
         const index = [...listItems.children].indexOf(item);
         const track = data[index];
 
-        if (onSelect) onSelect(track, hitPlay);
+        if (onSelectTrack) await onSelectTrack(track);
+        if (hitPlay) this.audio.togglePlay(item.dataset.id);
+        if (!hitPlay && this.isPlaying) this.audio.pause();
       }
 
       this._moveSlider(target, listItems, currentSlider);
     });
+  },
+
+  connectActionControl(cb) {
+    const player = $(".player");
+    const redo = $(".redo");
+    const expand = $(".expand");
+    const forward = $(".forward");
+    const backward = $(".backward");
+    const random = $(".random-tracks");
+    const microphone = $(".microphone");
+
+    const volumeContainer = $(".volume-container");
+    const volumeDown = $(".volume-down");
+    const volumeBar = $(".volume-bar");
+    const volumeFill = $(".volume-fill");
+    const volumeHandle = $(".volume-handle");
+
+    const progress = $(".progress-container");
+    const progressBar = $(".progress-bar");
+    const progressFill = $(".progress-fill");
+    const progressHandle = $(".progress-handle");
+    const currentTime = $(".current-time");
+    const durationTime = $(".duration-time");
+    const totalDuration = $(".volume-handle");
+    console.log("player: ", player);
+    this._likedSongsClick(cb);
+  },
+
+  _likedSongsClick(cb) {
+    const likedSongs = $(".liked-songs");
+    likedSongs.onclick = () => {
+      cb();
+      this.audio.togglePlay();
+    };
   },
 
   _createSectionTracks(prop, title) {
@@ -170,7 +204,7 @@ const playlistView = {
   /* ==== renderTracks ===== */
   /* =================== */
 
-  async renderTracks(queues, hitPlay) {
+  async renderTracks(queues) {
     if (!Array.isArray(queues)) return;
 
     this.trackLists.innerHTML = "";
@@ -221,48 +255,46 @@ const playlistView = {
     this.container.scrollTo({ top: 0 });
     setTimeout(() => this.detailTrack.classList.add("show-detail"), 50);
 
-    this.handleEventAnalysis(queues[0], hitPlay);
+    this.handleEventAnalysis();
   },
 
-  async handleEventAnalysis(hitPlay) {
-    const audio = this.audio;
+  async handleEventAnalysis() {
     const logo = $(".logo");
     const homeBtn = $(".home-btn");
     const btnPlays = [...$$(".track-plays button")];
 
-    logo.onclick = (e) => this.goHome(e, audio);
-    homeBtn.onclick = (e) => this.goHome(e, audio);
+    logo.onclick = this._goHome.bind(this);
+    homeBtn.onclick = this._goHome.bind(this);
 
-    if (hitPlay) audio.togglePlay();
-    this.playBtn.onclick = () => audio.togglePlay();
-    this.playBtnLarge.onclick = () => audio.togglePlay();
+    this.playBtn.onclick = this._handleBtnPlayClick.bind(this);
+    this.playBtnLarge.onclick = this._handleBtnPlayClick.bind(this);
 
     if (btnPlays) {
       btnPlays.forEach((btn) => {
-        btn.onclick = (e) => this.handleTrackOnList(e, audio);
+        btn.onclick = this._handleTrackOnList.bind(this);
       });
     }
   },
 
-  handleTrackOnList(e, audio) {
+  _handleBtnPlayClick() {
+    this.audio.togglePlay();
+  },
+
+  _handleTrackOnList(e) {
+    this.container.scrollTo({ top: 0 });
     const item = e.target.closest(".track-item");
     if (!item) return;
     const selectSongId = item.dataset.id;
     if (!selectSongId) return;
-    audio.togglePlay(selectSongId);
+    this.audio.togglePlay(selectSongId);
   },
 
-  goHome(e, audio) {
+  _goHome(e) {
     if (e.target.closest(".home-btn") || e.target.closest(".logo")) {
-      $(".show-detail")?.classList.remove("show-detail");
-      setTimeout(() => {
-        $(".show-detail-wrapper")?.classList.remove("show-detail-wrapper");
-      }, 300);
-      audio.pause();
-      $(`.content-wrapper`).scrollTo({
-        top: 0,
-        behavior: "smooth",
-      });
+      this.audio.pause();
+      this.container.scrollTo({ top: 0 });
+      this.detailTrack.classList.remove("show-detail");
+      setTimeout(() => this.wrapperTrack.classList.remove("show-detail-wrapper"), 300);
     }
   },
 
@@ -295,15 +327,14 @@ const playlistView = {
     }
   },
 
-  updatePlaybackUI(ctrl, state) {
+  updatePlaybackUI(state) {
     const song = state.currentTrack || {};
     const isPlaying = state.isPlaying || false;
-    const { playBtn, playBtnLarge } = ctrl;
 
-    playBtn.innerHTML = isPlaying && song.id ? `<i class="fas fa-pause"></i>` : `<i class="fas fa-play"></i>`;
-    playBtnLarge.innerHTML = isPlaying && song.id ? `<i class="fas fa-pause"></i>` : `<i class="fas fa-play"></i>`;
+    this.playBtn.innerHTML = isPlaying && song.id ? `<i class="fas fa-pause"></i>` : `<i class="fas fa-play"></i>`;
+    this.playBtnLarge.innerHTML = isPlaying && song.id ? `<i class="fas fa-pause"></i>` : `<i class="fas fa-play"></i>`;
 
-    const allTrackItems = $$(".track-item", this.trackLists);
+    const allTrackItems = [...this.trackLists.children];
     allTrackItems?.forEach((item, i) => {
       const btnPlay = $(".track-plays button", item);
       if (!btnPlay) return;

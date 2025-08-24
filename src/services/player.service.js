@@ -45,6 +45,10 @@ const playerService = {
     },
   ),
 
+  setCurrentTrack(track) {
+    this.state.currentTrack = track;
+  },
+
   setTracks(data, track) {
     if (!Array.isArray(data)) {
       console.warn("tracks không phải mảng, khởi tạo sampleTracks về rỗng");
@@ -57,31 +61,36 @@ const playerService = {
     return sampleTracks;
   },
 
-  getTracks() {
-    return sampleTracks || [];
-  },
-
   setState(updates) {
     if (typeof updates !== "object" || updates === null) return;
+    sampleTracks = updates.tracks;
     Object.entries(updates).forEach(([key, value]) => {
       this.state[key] = value;
     });
     return this.state;
   },
-  // setState(updates) {
-  //   if (typeof updates !== "object" || updates === null) return;
-  //   this.state = { ...this.state, ...updates }; // merge toàn bộ
-  //   return this.state;
-  // },
 
   getState() {
     return this.state;
+  },
+
+  getTracks() {
+    return sampleTracks || [];
+  },
+
+  getTrack() {
+    return this.state.currentTrack;
+  },
+
+  getIsPlaying() {
+    return this.state.isPlaying;
   },
 
   play(trackId) {
     if (!Array.isArray(sampleTracks)) {
       throw new Error("sampleTracks không được khởi tạo đúng");
     }
+
     const track = sampleTracks.find((t) => t.id === trackId) || this.state.queue[0];
     if (!track) {
       throw new Error(`Không tìm thấy bài hát với ID: ${trackId}`);
