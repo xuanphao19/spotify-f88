@@ -9,6 +9,7 @@ const $$ = (selector, p = document) => p.querySelectorAll(selector);
 
 const playlistCtrl = {
   audioEle: null,
+  currentSong: null,
 
   async init() {
     this.audioEle = document.querySelector("audio");
@@ -19,6 +20,7 @@ const playlistCtrl = {
 
     playback.onStateChange((newState) => {
       const newTrack = newState.currentTrack;
+      let newVolume = newState.volume_percent ?? 50;
 
       if (newTrack !== viewer.prevCurrentTrack) {
         viewer.prevCurrentTrack = newTrack;
@@ -27,6 +29,12 @@ const playlistCtrl = {
 
       if (viewer.isPlaying !== newState.isPlaying || viewer.isPlaying) {
         viewer.updatePlaybackUI(newState);
+      }
+
+      if (viewer.prevVolume !== newVolume) {
+        viewer.prevVolume = newVolume;
+        viewer.updateVolumeUI(newState);
+        if (this.audioEle) this.audioEle.volume = newVolume * 0.01;
       }
 
       viewer.isPlaying = newState.isPlaying;
@@ -57,8 +65,9 @@ const playlistCtrl = {
 
       playback.setState(updates);
       playlistCtrl.handlePlaySong();
+      viewer.updateNewSong = playlistCtrl.updateNewSong;
 
-      viewer.connectActionControl(playlistCtrl.updateNewSong);
+      viewer.connectActionControl(playback);
     } catch (err) {
       console.error("❌ Failed to load playlists:", err.message);
     }
@@ -90,6 +99,21 @@ const playlistCtrl = {
     }
   },
 
+  async updateNewSong(songId) {
+    let currentSong = playback.state.currentTrack;
+    let newSong = songId && playback.state.tracks.find((song) => song.id === songId);
+    if (songId && newSong !== currentSong) {
+      currentSong = newSong || currentSong;
+      try {
+        await playback.setCurrentTrack(currentSong);
+      } catch (error) {
+        console.error("Lỗi khi cập nhật bản nhạc:", error);
+      }
+    }
+
+    return currentSong;
+  },
+
   async handlePlaySong() {
     try {
       const audioEle = this.audioEle;
@@ -97,24 +121,35 @@ const playlistCtrl = {
       audioEle.src = currentTrack.audio_url;
 
       const audio = {
-        togglePlay(songId) {
-          let song = songId && playback.state.tracks.find((s) => s.id === songId);
-          if (songId && song !== currentTrack) {
-            currentTrack = song ? song : playback.state.currentTrack;
-            playback.setCurrentTrack(currentTrack);
-            audioEle.src = currentTrack.audio_url;
-            this.play(true);
+        togglePlay(isNewTrack = false) {
+          let newSong = playback.state.currentTrack;
+
+          if (isNewTrack && newSong !== this.currentSong) {
+            this.play(isNewTrack);
+            this.currentSong = newSong;
+          } else if (isNewTrack && !playback.state.isPlaying) {
+            this.play();
+          } else if (playback.state.isPlaying) {
+            this.pause();
           } else if (!playback.state.isPlaying) {
             this.play();
-          } else {
-            this.pause();
           }
         },
 
         play(isNewTrack = false) {
+          const currentTrack = playback.state.currentTrack;
+          if (!currentTrack || !currentTrack.audio_url) {
+            console.warn("Không có bài hát để phát!");
+            return;
+          }
+
           playback.play(currentTrack.id);
           if (isNewTrack) {
-            audioEle.oncanplay = () => audioEle.play();
+            audioEle.src = currentTrack.audio_url;
+            audioEle.oncanplay = () => {
+              audioEle.play();
+              audioEle.oncanplay = null;
+            };
           } else {
             audioEle.play();
           }
@@ -131,11 +166,6 @@ const playlistCtrl = {
     } catch (error) {
       console.log("error at handlePlaySong() : ", error);
     }
-  },
-
-  async updateNewSong() {
-    const isplay = playback.getIsPlaying();
-    console.log("state.isPlaying: ", isplay);
   },
 };
 

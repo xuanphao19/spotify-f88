@@ -37,10 +37,18 @@ const playlistView = {
   playBtnLarge: $(`.play-btn-large`),
   trackLists: $(".track-list"),
   playBtn: $(`.play-btn`),
-  isPlaying: false,
-  prevVolume: 50,
-  prevCurrentTrack: null,
+  volumeContainer: $(".volume-container"),
+  volumeHandle: $(".volume-handle"),
+  volumeDown: $(".volume-down"),
+  volumeBar: $(".volume-bar"),
+  volumeFill: $(".volume-fill"),
+
   audio: null,
+  isPlaying: false,
+  prevVolume: 40,
+  isDragging: false,
+  prevCurrentTrack: null,
+  updateNewSong: null,
 
   async renderList(res, title, onSelectTrack) {
     const data = res.albums || res.tracks || res.artists;
@@ -63,7 +71,10 @@ const playlistView = {
         const track = data[index];
 
         if (onSelectTrack) await onSelectTrack(track);
-        if (hitPlay) this.audio.togglePlay(item.dataset.id);
+        if (hitPlay) {
+          await this.updateNewSong(item.dataset.id);
+          this.audio.togglePlay(true);
+        }
         if (!hitPlay && this.isPlaying) this.audio.pause();
       }
 
@@ -71,36 +82,9 @@ const playlistView = {
     });
   },
 
-  connectActionControl(cb) {
-    const player = $(".player");
-    const redo = $(".redo");
-    const expand = $(".expand");
-    const forward = $(".forward");
-    const backward = $(".backward");
-    const random = $(".random-tracks");
-    const microphone = $(".microphone");
-
-    const volumeContainer = $(".volume-container");
-    const volumeDown = $(".volume-down");
-    const volumeBar = $(".volume-bar");
-    const volumeFill = $(".volume-fill");
-    const volumeHandle = $(".volume-handle");
-
-    const progress = $(".progress-container");
-    const progressBar = $(".progress-bar");
-    const progressFill = $(".progress-fill");
-    const progressHandle = $(".progress-handle");
-    const currentTime = $(".current-time");
-    const durationTime = $(".duration-time");
-    const totalDuration = $(".volume-handle");
-    console.log("player: ", player);
-    this._likedSongsClick(cb);
-  },
-
-  _likedSongsClick(cb) {
+  _likedSongsClick() {
     const likedSongs = $(".liked-songs");
     likedSongs.onclick = () => {
-      cb();
       this.audio.togglePlay();
     };
   },
@@ -280,13 +264,14 @@ const playlistView = {
     this.audio.togglePlay();
   },
 
-  _handleTrackOnList(e) {
-    this.container.scrollTo({ top: 0 });
+  async _handleTrackOnList(e) {
     const item = e.target.closest(".track-item");
     if (!item) return;
     const selectSongId = item.dataset.id;
     if (!selectSongId) return;
-    this.audio.togglePlay(selectSongId);
+    await this.updateNewSong(selectSongId);
+    await this.audio.togglePlay(true);
+    if (this.isPlaying === true) this.container.scrollTo({ top: 0 });
   },
 
   _goHome(e) {
@@ -342,6 +327,91 @@ const playlistView = {
       btnPlay.innerHTML = isActive ? `<i class="fas fa-volume-up"></i>` : `<i class="fas fa-play"></i>`;
       item.classList.toggle("active", isActive);
     });
+  },
+
+  updateVolumeUI(state) {
+    const volume = state.volume_percent;
+
+    if (this.volumeDown) {
+      this.volumeDown.children[0].classList.remove("fa-volume-mute", "fa-volume-down", "fa-volume-up");
+      this.volumeDown.children[0].classList.add(
+        volume === 0 ? "fa-volume-mute" : volume < 20 ? "fa-volume-down" : "fa-volume-up",
+      );
+    }
+
+    if (this.volumeFill && this.volumeHandle) {
+      const root = this.volumeContainer.style;
+      root.setProperty("--volume-width", `${volume}%`);
+      root.setProperty("--hue", `${160 - volume * 1.3}deg`);
+      root.setProperty("--handle-hue", `${120 - volume}deg`);
+      root.setProperty("--icon-hue", `${140 - volume}deg`);
+      root.setProperty("--grad-pos", `${(volume + -130) * -1}%`);
+    }
+
+    if (volume !== 0) {
+      this.prevVolume = volume;
+    }
+  },
+
+  handleVolume(playback) {
+    const setNewVolume = (e) => {
+      const barRect = this.volumeBar.getBoundingClientRect();
+      const clickX = e.clientX - barRect.left;
+      const barWidth = barRect.width;
+      const newVolume = Math.max(0, Math.min(100, (clickX / barWidth) * 100));
+      playback.setVolume(Math.round(newVolume));
+    };
+
+    this.volumeBar.onmousedown = (e) => {
+      this.isDragging = true;
+      setNewVolume(e);
+    };
+    document.onmousemove = (e) => {
+      if (this.isDragging) {
+        setNewVolume(e);
+      }
+    };
+
+    document.onmouseup = () => {
+      this.isDragging = false;
+    };
+
+    this.volumeContainer.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      let step = 5;
+      let delta = e.deltaY < 0 ? step : -step;
+      let current = playback.getState().volume_percent ?? 50;
+      let newVolume = Math.min(100, Math.max(0, current + delta));
+
+      playback.setVolume(newVolume);
+    });
+
+    this.volumeDown.onclick = () => {
+      const currentVolume = playback.getState().volume_percent;
+      playback.setVolume(currentVolume === 0 ? this.prevVolume || 50 : 0);
+    };
+  },
+
+  connectActionControl(playback) {
+    const player = $(".player");
+    const redo = $(".redo");
+    const expand = $(".expand");
+    const forward = $(".forward");
+    const backward = $(".backward");
+    const random = $(".random-tracks");
+    const microphone = $(".microphone");
+
+    const progress = $(".progress-container");
+    const progressBar = $(".progress-bar");
+    const progressFill = $(".progress-fill");
+    const progressHandle = $(".progress-handle");
+    const currentTime = $(".current-time");
+    const durationTime = $(".duration-time");
+    const totalDuration = $(".volume-handle");
+
+    // progress.onclick = () =>
+    this.handleVolume(playback);
+    this._likedSongsClick();
   },
 };
 

@@ -7,7 +7,7 @@
   }
 
   .track-item {
-    grid-template-columns: 16px 40px 4fr 1fr auto auto auto;
+    grid-template-columns: 28px 40px 4fr 1fr auto auto auto;
   }
 }
 
@@ -18,7 +18,7 @@
   }
 
   .track-item {
-    grid-template-columns: 16px 40px 3fr 1fr auto auto auto;
+    grid-template-columns: 28px 40px 3fr 1fr auto auto auto;
   }
 }
 
@@ -46,7 +46,7 @@
   }
 
   .track-item {
-    grid-template-columns: 16px 40px 2fr auto auto auto;
+    grid-template-columns: 28px 40px 2fr auto auto auto;
     gap: var(--spacing-sm);
   }
 
@@ -149,7 +149,7 @@
   }
 
   .track-item {
-    grid-template-columns: 16px 40px 1fr auto auto;
+    grid-template-columns: 28px 40px 1fr auto auto;
     gap: var(--spacing-sm);
     padding: var(--spacing-sm);
   }
@@ -261,7 +261,7 @@
   }
 
   .track-item {
-    grid-template-columns: 16px 32px 1fr auto;
+    grid-template-columns: 18px 32px 1fr auto;
     gap: var(--spacing-xs);
   }
 
