@@ -17,24 +17,32 @@ const playlistCtrl = {
       this.audioEle = document.createElement("audio");
       document.body.appendChild(this.audioEle);
     }
+    viewer.playback = playback;
+    viewer.audioEle = this.audioEle;
 
     playback.onStateChange((newState) => {
       const newTrack = newState.currentTrack;
       let newVolume = newState.volume_percent ?? 50;
+      let newProgress = newState.position_ms ?? 0;
+
+      if (viewer.isPlaying !== newState.isPlaying || newTrack !== viewer.prevCurrentTrack) {
+        viewer.updatePlaybackUI(newState);
+      }
 
       if (newTrack !== viewer.prevCurrentTrack) {
         viewer.prevCurrentTrack = newTrack;
         viewer.updatePlayerDetail(newState);
       }
 
-      if (viewer.isPlaying !== newState.isPlaying || viewer.isPlaying) {
-        viewer.updatePlaybackUI(newState);
-      }
-
       if (viewer.prevVolume !== newVolume) {
         viewer.prevVolume = newVolume;
         viewer.updateVolumeUI(newState);
         if (this.audioEle) this.audioEle.volume = newVolume * 0.01;
+      }
+
+      if (viewer.prevProgress !== newProgress) {
+        viewer.prevProgress = newProgress;
+        viewer.updateProgressUI(newState);
       }
 
       viewer.isPlaying = newState.isPlaying;
@@ -67,7 +75,7 @@ const playlistCtrl = {
       playlistCtrl.handlePlaySong();
       viewer.updateNewSong = playlistCtrl.updateNewSong;
 
-      viewer.connectActionControl(playback);
+      viewer.connectActionControl(this.audioEle);
     } catch (err) {
       console.error("❌ Failed to load playlists:", err.message);
     }
@@ -119,6 +127,18 @@ const playlistCtrl = {
       const audioEle = this.audioEle;
       let currentTrack = playback.state.currentTrack;
       audioEle.src = currentTrack.audio_url;
+      let positionMs = 0;
+      let durationMs = 0;
+      audioEle.ontimeupdate = () => {
+        if (!isNaN(audioEle.duration)) {
+          const currentTime = audioEle.currentTime;
+          const duration = audioEle.duration;
+          positionMs = currentTime * 1000;
+          durationMs = duration * 1000;
+          playback.state.position_ms = positionMs;
+          playback.state.duration_ms = durationMs;
+        }
+      };
 
       const audio = {
         togglePlay(isNewTrack = false) {
@@ -153,11 +173,22 @@ const playlistCtrl = {
           } else {
             audioEle.play();
           }
+
+          playback.state.position_ms = positionMs;
+          playback.state.duration_ms = durationMs;
         },
 
         pause() {
           playback.pause();
           audioEle.pause();
+        },
+
+        onend(cb) {
+          audioEle.onended = () => {
+            playback.pause();
+            viewer.isPlaying = false;
+            if (typeof cb === "function") cb();
+          };
         },
       };
 

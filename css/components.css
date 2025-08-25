@@ -738,6 +738,10 @@
   transition: all var(--transition-fast);
 }
 
+.progress-fill {
+  width: var(--progress-width, 20px);
+}
+
 .progress-handle,
 .volume-handle {
   position: absolute;
@@ -752,6 +756,10 @@
   transition: all var(--transition-fast);
   background-color: var(--text-primary);
   opacity: 0;
+}
+
+.progress-handle {
+  left: calc(var(--progress-width) - 10px);
 }
 
 .volume-handle {
