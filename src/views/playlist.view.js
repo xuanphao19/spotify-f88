@@ -18,21 +18,18 @@ const prop = {
   ctrl: "slider-ctrl",
   ctrl: "slider-ctrl",
 };
-
-const artistProp = {
-  ...prop,
-  content: "artists-grid hits-slider",
-  item: "artist-card hit-card",
-  cover: "artist-card-cover",
-  playBtn: "hit-play artist-play-btn",
-  info: "artist-card-info",
-  title: "artist-card-name",
-  artist: "artist-card-name",
-};
-
 const playlistView = {
-  playback: null,
-  audioEle: null,
+  artistProp: {
+    ...prop,
+    content: "artists-grid hits-slider",
+    item: "artist-card hit-card",
+    cover: "artist-card-cover",
+    playBtn: "hit-play artist-play-btn",
+    info: "artist-card-info",
+    title: "artist-card-name",
+    artist: "artist-card-name",
+  },
+
   detailTrack: $(`.detail-track`),
   container: $(`.content-wrapper`),
   wrapperTrack: $(`.detail-wrapper`),
@@ -54,7 +51,7 @@ const playlistView = {
 
   audio: null,
   isPlaying: false,
-  prevVolume: 40,
+  prevVolume: 20,
   prevProgress: 0,
   prevCurrentTrack: null,
   updateNewSong: null,
@@ -99,7 +96,7 @@ const playlistView = {
   },
 
   _createSectionTracks(prop, title) {
-    prop = title === "Featured Albums" ? artistProp : prop;
+    prop = title === "Featured Albums" ? this.artistProp : prop;
     const { prevCtrl, nextCtrl } = this._createCtrlSlider(prop);
 
     const section = document.createElement("section");
@@ -141,7 +138,7 @@ const playlistView = {
   },
 
   _createContentSection(data, prop, title) {
-    prop = title === "Featured Albums" ? artistProp : prop;
+    prop = title === "Featured Albums" ? this.artistProp : prop;
     const listItems = document.createElement("div");
     listItems.className = `${prop.content}`;
 
@@ -320,8 +317,7 @@ const playlistView = {
   },
 
   updatePlaybackUI(state) {
-    const song = state.currentTrack || {};
-    const isPlaying = state.isPlaying || false;
+    const { song, isPlaying } = state;
 
     this.playBtnCtrl.innerHTML = isPlaying && song.id ? `<i class="fas fa-pause"></i>` : `<i class="fas fa-play"></i>`;
     this.playBtnLarge.innerHTML = isPlaying && song.id ? `<i class="fas fa-pause"></i>` : `<i class="fas fa-play"></i>`;
@@ -408,12 +404,10 @@ const playlistView = {
       isDragging = true;
       if (isProgress) isDraProg = true;
       handleInteractive(e);
-
       const onMouseMove = (e) => {
         if (isDragging) handleInteractive(e);
         if (isDraProg) this.audioEle.pause();
       };
-
       const onMouseUp = () => {
         isDragging = false;
         if (isDraProg) this.audioEle.play();
@@ -421,7 +415,6 @@ const playlistView = {
         document.removeEventListener("mousemove", onMouseMove);
         document.removeEventListener("mouseup", onMouseUp);
       };
-
       document.addEventListener("mousemove", onMouseMove);
       document.addEventListener("mouseup", onMouseUp);
     };
@@ -482,7 +475,7 @@ const playlistView = {
     this.registerInteractiveBar({
       container: this.volumeBar,
       onChange: this._setVolumeValue.bind(this),
-      wheelStep: 5,
+      wheelStep: 1,
       toggleBtn: this.volumeDown,
     });
 

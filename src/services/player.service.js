@@ -5,12 +5,20 @@ let sampleTracks = [];
 const playerService = {
   listeners: [],
 
-  onStateChange(callback) {
-    this.listeners.push(callback);
+  onStateChange(...callbacks) {
+    this.listeners.push(...callbacks);
   },
 
   state: new Proxy(
-    { tracks: sampleTracks, currentTrack: null, isPlaying: false, position_ms: 0, volume_percent: 50, queue: [] },
+    {
+      tracks: sampleTracks,
+      currentTrack: null,
+      isPlaying: false,
+      position_ms: 0,
+      volume_percent: 20,
+      queue: [],
+      audio: null,
+    },
     {
       set(target, property, value) {
         // Target: Obj gốc (chứa trạng thái ban đầu)
@@ -76,6 +84,10 @@ const playerService = {
 
   getTracks() {
     return sampleTracks || [];
+  },
+
+  setTrack(track) {
+    return (this.state.currentTrack = track);
   },
 
   getTrack() {

@@ -771,17 +771,19 @@
   opacity: 1;
 }
 .volume-fill {
-  width: var(--volume-width, 50%);
+  width: var(--volume-width, 20%);
   background: linear-gradient(to right, hsl(var(--hue, 100) 100% 33.32%) var(--grad-pos, 80%), hsl(0deg 100% 33.32%));
 }
 
 .volume-handle {
-  left: var(--volume-width, 50%);
+  left: var(--volume-width, 20%);
   background-color: hsl(var(--handle-hue, 100) 100% 35%);
 }
 
 .volume-down i {
   color: hsl(var(--icon-hue, 90) 100% 33.32%);
+background: #333333;
+
 }
 
 /* User avatar */

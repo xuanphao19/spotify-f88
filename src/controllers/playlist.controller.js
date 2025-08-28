@@ -4,9 +4,6 @@ import viewer from "../views/playlist.view.js";
 import playback from "../services/player.service.js";
 import artistsService from "../services/artists.service.js";
 
-const $ = (selector, p = document) => p.querySelector(selector);
-const $$ = (selector, p = document) => p.querySelectorAll(selector);
-
 const playlistCtrl = {
   audioEle: null,
   currentSong: null,
@@ -22,11 +19,17 @@ const playlistCtrl = {
 
     playback.onStateChange((newState) => {
       const newTrack = newState.currentTrack;
-      let newVolume = newState.volume_percent ?? 50;
+      let newVolume = newState.volume_percent ?? 30;
       let newProgress = newState.position_ms ?? 0;
+
+      newState.audio = this.audioEle;
+      newState.song = newState.currentTrack;
+      newState.setTracks = playback.setTracks;
+      newState.setTracks = playback.setTracks;
 
       if (viewer.isPlaying !== newState.isPlaying || newTrack !== viewer.prevCurrentTrack) {
         viewer.updatePlaybackUI(newState);
+        if (this.audioEle) this.audioEle.volume = newVolume * 0.01;
       }
 
       if (newTrack !== viewer.prevCurrentTrack) {
@@ -37,7 +40,6 @@ const playlistCtrl = {
       if (viewer.prevVolume !== newVolume) {
         viewer.prevVolume = newVolume;
         viewer.updateVolumeUI(newState);
-        if (this.audioEle) this.audioEle.volume = newVolume * 0.01;
       }
 
       if (viewer.prevProgress !== newProgress) {
@@ -46,8 +48,10 @@ const playlistCtrl = {
       }
 
       viewer.isPlaying = newState.isPlaying;
+      /* , viewer.updatePlayerDetail.bind(this) */
     });
 
+    // viewer.updateVolumeUI(playback.state);
     await this.loadPlaylists();
   },
 
